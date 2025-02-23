@@ -1,0 +1,4 @@
+- ERROR -
+raise ValueError(exception_message)
+ValueError: Failed with exception: Files were added to partition [job=1] by a concurrent update. Please try the operation again.
+Refer to https://docs.delta.io/latest/concurrency-control.html for more details.

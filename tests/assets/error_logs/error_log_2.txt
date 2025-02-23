@@ -1,0 +1,2 @@
+2025-02-17 15:06:05,378 - main:main:65 - ERROR - Processing failed with error: A job is already running. Please let it complete first.
+2025-02-17 15:06:06,211 - main:main:68 - ERROR - Sent mattermost notification.

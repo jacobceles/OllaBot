@@ -1,0 +1,6 @@
+postgres:
+  tables:
+    - table_name: "students"
+      context: "Contains student info"
+
+   

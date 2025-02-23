@@ -1,0 +1,8 @@
+models:
+  summarize_errors:
+    summary_model: "llama3.2:latest"
+    embedding_model: "nomic-embed-text"
+  database_query:
+    query_model: "qwen2.5-coder:latest"
+    summary_model: "llama3.2:latest"
+    embedding_model: "nomic-embed-text"
