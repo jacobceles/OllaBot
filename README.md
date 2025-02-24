@@ -11,27 +11,7 @@ OllaBot is a Streamlit-based application that allows users to interact with Post
 - Executes the SQL queries and retrieves data  
 - Summarizes the query results using an LLM-based response synthesizer  
 - Performs log analysis to extract errors and suggest fixes  
-- Simple Streamlit UI for interactive use  
-
-## Screenshots
-
-Here are some screenshots of OllaBot in action:
-
-### Ask me!
-
-![Query 1](screenshots/1.png)
-
-![Query 2](screenshots/2.png)
-
-![Query 3](screenshots/3.png)
-
-### Log Analyzer
-
-![Query 4](screenshots/4.png)
-
-![Query 5](screenshots/5.png)
-
-![Query 6](screenshots/6.png)
+- Simple Streamlit UI for interactive use
 
 ## Project Structure
 
