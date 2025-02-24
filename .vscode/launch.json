@@ -1,15 +1,36 @@
 {
-    "version": "0.2.0",
-    "configurations": [
+  "version": "0.2.0",
+  "configurations": [
       {
-        "name": "Run Models, API, and App",
-        "type": "debugpy",
-        "request": "launch",
-        "program": "${workspaceFolder}/app.py",  // Adjust if your entry file is different
-        "preLaunchTask": "Run LLM Models",  // Runs before the server starts
-        "postDebugTask": "Start Streamlit UI",  // Starts Streamlit UI after FastAPI
-        "console": "integratedTerminal"
+          "name": "Streamlit App",
+          "type": "debugpy",
+          "request": "launch",
+          "module": "streamlit",
+          "args": [
+              "run",
+              "app.py"
+          ],
+          "jinja": true,
+          "justMyCode": false,
+          "preLaunchTask": "start-ollama-models"
+      },
+      {
+          "name": "FastAPI Server",
+          "type": "debugpy",
+          "request": "launch",
+          "module": "uvicorn",
+          "args": [
+              "api.server:app",
+              "--host", "127.0.0.1", "--port", "8000", "--reload"
+          ],
+          "jinja": true,
+          "justMyCode": false
       }
-    ]
-  }
-  
+  ],
+  "compounds": [
+      {
+          "name": "Streamlit + FastAPI",
+          "configurations": ["Streamlit App", "FastAPI Server"]
+      }
+  ]
+}
