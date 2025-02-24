@@ -6,13 +6,14 @@ with potential fixes.
 """
 
 import re
-import yaml
-from llama_index.core import Settings, Document, SummaryIndex
-from llama_index.core.node_parser.text.token import TokenTextSplitter
-from llama_index.llms.ollama import Ollama  # type: ignore
-from llama_index.embeddings.ollama import OllamaEmbedding  # type: ignore
-from utils.logging_config import logger
 
+import yaml
+from llama_index.core import Document, Settings, SummaryIndex
+from llama_index.core.node_parser.text.token import TokenTextSplitter
+from llama_index.embeddings.ollama import OllamaEmbedding  # type: ignore
+from llama_index.llms.ollama import Ollama  # type: ignore
+
+from utils.logging_config import logger
 
 # Load configuration from YAML
 with open("api/configs/config.yaml") as file:
@@ -68,9 +69,7 @@ def summarize_errors(logs: str) -> str:
     summary_index = SummaryIndex.from_documents(documents)
 
     # Define query prompt for summarization
-    query_prompt: str = (
-        "Provide a concise summary of the following error logs and propose potential fixes for the observed issues:"
-    )
+    query_prompt: str = "Provide a concise summary of the following error logs and propose potential fixes for the observed issues:"
 
     # Query the index to generate a summary
     result = summary_index.as_query_engine(llm=llm).query(query_prompt)

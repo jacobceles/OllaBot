@@ -8,8 +8,8 @@ This app provides two functionalities:
 
 import requests
 import streamlit as st
-from utils.logging_config import logger
 
+from utils.logging_config import logger
 
 # Set the page title and layout
 st.set_page_config(page_title="OllaBot", layout="wide")
@@ -49,11 +49,7 @@ if menu == "Ask me!":
             logger.info("User submitted query: %s for db_type: %s", query, db_type)
             try:
                 with st.spinner("Generating SQL query..."):
-                    response = requests.post(
-                        f"{API_URL}/execute_query/",
-                        json={"db_type": db_type, "question": query},
-                        timeout=120
-                    )
+                    response = requests.post(f"{API_URL}/execute_query/", json={"db_type": db_type, "question": query}, timeout=120)
                     response.raise_for_status()  # Raise error for bad HTTP responses
                     data = response.json()
                     st.session_state.response_ready = True  # Mark response as ready
@@ -90,11 +86,7 @@ elif menu == "Analyze Logs":
             logger.info("User submitted logs for analysis.")
             try:
                 with st.spinner("Analyzing logs..."):
-                    response = requests.post(
-                        f"{API_URL}/analyze_logs/",
-                        json={"logs": log_input},
-                        timeout=120
-                    )
+                    response = requests.post(f"{API_URL}/analyze_logs/", json={"logs": log_input}, timeout=120)
                     response.raise_for_status()
                     data = response.json()
                     st.session_state.log_response_ready = True  # Mark response as ready

@@ -7,11 +7,13 @@ This server provides endpoints to:
 """
 
 from typing import Any
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from api.models.classes import QueryRequest, LogRequest
-from api.services.log_analysis_llm import summarize_errors
+
+from api.models.classes import LogRequest, QueryRequest
 from api.services.database_llm import create_db_engine, create_query_engine, execute_query
+from api.services.log_analysis_llm import summarize_errors
 from utils.logging_config import logger
 
 # Load environment variables
@@ -34,7 +36,7 @@ async def execute_sql_query(request: QueryRequest) -> dict[str, str]:
 
     Returns:
         dict[str, str]: A dictionary containing the generated SQL query and its response.
-    
+
     Raises:
         HTTPException: If database connection fails or an error occurs during query execution.
     """
@@ -77,7 +79,7 @@ async def analyze_logs(request: LogRequest) -> dict[str, str]:
 
     Returns:
         dict[str, str]: JSON containing the error summary and possible fixes.
-    
+
     Raises:
         HTTPException: If an error occurs during log analysis.
     """

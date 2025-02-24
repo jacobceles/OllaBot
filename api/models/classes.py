@@ -7,8 +7,8 @@ This module includes:
 - CustomAccumulate: Modified response synthesizer for concatenating outputs.
 """
 
-from pydantic import BaseModel
 from llama_index.core.response_synthesizers import Accumulate
+from pydantic import BaseModel
 
 
 class QueryRequest(BaseModel):
@@ -19,6 +19,7 @@ class QueryRequest(BaseModel):
         db_type (str): The type of database (e.g., "postgres").
         question (str): The user's natural language question.
     """
+
     db_type: str
     question: str
 
@@ -30,6 +31,7 @@ class LogRequest(BaseModel):
     Attributes:
         logs (str): The error logs to analyze.
     """
+
     logs: str
 
 

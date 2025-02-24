@@ -7,19 +7,20 @@ from natural language questions, execute queries, and synthesize responses.
 
 import os
 import re
-import yaml
 from typing import Any, Optional
-from api.models.classes import CustomAccumulate
-from llama_index.core import SQLDatabase, Settings
+
+import yaml
+from llama_index.core import Settings, SQLDatabase
 from llama_index.core.indices.struct_store.sql_query import SQLTableRetrieverQueryEngine
-from llama_index.core.objects import SQLTableNodeMapping, ObjectIndex, SQLTableSchema
-from llama_index.llms.ollama import Ollama  # type: ignore
+from llama_index.core.objects import ObjectIndex, SQLTableNodeMapping, SQLTableSchema
 from llama_index.embeddings.ollama import OllamaEmbedding  # type: ignore
+from llama_index.llms.ollama import Ollama  # type: ignore
 from sqlalchemy import create_engine, text  # type: ignore
 from sqlalchemy.engine import Engine  # type: ignore
 from sqlalchemy.exc import SQLAlchemyError  # type: ignore
-from utils.logging_config import logger
 
+from api.models.classes import CustomAccumulate
+from utils.logging_config import logger
 
 # Load configuration from YAML
 with open("api/configs/config.yaml") as file:
@@ -93,8 +94,7 @@ def create_db_engine(db_type: str) -> Optional[Engine]:
         return None
     try:
         engine: Engine = create_engine(
-            f"{config_data['dialect']}://{config_data['user']}:{config_data['password']}@"
-            f"{config_data['host']}:{config_data['port']}/{config_data['db']}",
+            f"{config_data['dialect']}://{config_data['user']}:{config_data['password']}@{config_data['host']}:{config_data['port']}/{config_data['db']}",
             connect_args={"options": f"-c search_path={config_data['schema']}"},
         )
         logger.info("Created database engine for db_type: %s", db_type)
@@ -127,9 +127,7 @@ def create_query_engine(engine: Engine, db_type: str) -> tuple[SQLTableRetriever
 
     # Load table schema from configuration
     tables = load_table_config(db_type)
-    table_schemas = [
-        SQLTableSchema(table_name=t["table_name"], context_str=t["context"]) for t in tables
-    ]
+    table_schemas = [SQLTableSchema(table_name=t["table_name"], context_str=t["context"]) for t in tables]
 
     # Create table mappings and object index
     table_node_mapping = SQLTableNodeMapping(sql_database)
@@ -137,12 +135,7 @@ def create_query_engine(engine: Engine, db_type: str) -> tuple[SQLTableRetriever
 
     # Create SQL query engine
     query_engine = SQLTableRetrieverQueryEngine(
-        sql_database=sql_database,
-        table_retriever=obj_index.as_retriever(similarity_top_k=1),
-        rows_retrievers=None,
-        llm=sql_llm,
-        synthesize_response=False,
-        sql_only=True
+        sql_database=sql_database, table_retriever=obj_index.as_retriever(similarity_top_k=1), rows_retrievers=None, llm=sql_llm, synthesize_response=False, sql_only=True
     )
     logger.info("Created query engine for db_type: %s", db_type)
     return query_engine, accumulate_synthesizer
@@ -209,8 +202,7 @@ def execute_custom_query(engine: Engine, sql_query: str) -> Any:
         return None
 
 
-def execute_query(engine: Engine, query_engine: SQLTableRetrieverQueryEngine, 
-                  synthesizer: CustomAccumulate, query: str) -> tuple[str, str]:
+def execute_query(engine: Engine, query_engine: SQLTableRetrieverQueryEngine, synthesizer: CustomAccumulate, query: str) -> tuple[str, str]:
     """
     Generate SQL from a natural language query, validate, execute, and summarize the results.
 
@@ -240,7 +232,7 @@ def execute_query(engine: Engine, query_engine: SQLTableRetrieverQueryEngine,
 
     # Clean the generated SQL query
     generated_sql_query = clean_sql_query(generated_sql_query)
-    
+
     # Execute the validated SQL query
     query_results = execute_custom_query(engine, generated_sql_query)
     if query_results is None:
