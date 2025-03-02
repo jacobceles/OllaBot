@@ -6,23 +6,24 @@ OllaBot is a Streamlit-based application that allows users to interact with Post
 
 ## Features
 
-- Connects to PostgreSQL
-- Converts natural language queries into SQL statements  
-- Executes the SQL queries and retrieves data  
-- Summarizes the query results using an LLM-based response synthesizer  
-- Performs log analysis to extract errors and suggest fixes  
-- Simple Streamlit UI for interactive use
+- Connects to PostgreSQL.
+- Converts natural language queries into SQL statements.
+- Executes the SQL queries and retrieves data.
+- Summarizes the query results using an LLM-based response synthesizer.
+- Performs log analysis to extract errors and suggest fixes.
+- Simple Streamlit UI for interactive use.
 
 ## Project Structure
-
+[text](api/models/.py) [text](api/models/.py)
 ```
 📦 OllaBot
 ├── app.py                          # Streamlit UI for the bot
+├── server.py                       # FastAPI backend for handling queries and log analysis
 ├── api/
-│   ├── server.py                   # FastAPI backend for handling queries and log analysis
 │   ├── models/
-│   │   ├── classes.py              # Pydantic models for API requests
+│   │   ├── request_models.py       # Pydantic models for API requests
 │   ├── services/
+│   │   ├── llama_3.2_tokenizer     # Embedding model used to collect token metrics
 │   │   ├── database_llm.py         # Database query execution and LLM integration
 │   │   ├── log_analysis_llm.py     # Log analysis and summarization
 │   ├── configs/
@@ -125,11 +126,15 @@ This approach ensures both the FastAPI server and the Streamlit app start togeth
 You can also run the tasks using the terminal:
 
 ```
+# Activate Environment
+source $(poetry env info --path)/bin/activate
+
 # Start FastAPI Server
-poetry run uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+python -m server --local
 
 # Start Streamlit App
-poetry run streamlit run app.py
+source $(poetry env info --path)/bin/activate
+streamlit run app.py -- --local
 ```
 
 Once the app is running, open [http://localhost:8501](http://localhost:8501) in your browser.
@@ -170,11 +175,11 @@ You can update the LLM models used for query generation and summarization by mod
 models:
   summarize_errors:
     summary_model: "llama3.2:latest"
-    embedding_model: "nomic-embed-text"
+    embedding_model: "nomic-embed-text:latest"
   database_query:
-    query_model: "qwen2.5-coder:7b"
+    query_model: "qwen2.5-coder:latest"
     summary_model: "llama3.2:latest"
-    embedding_model: "nomic-embed-text"
+    embedding_model: "nomic-embed-text:latest"
 ```
 
 ## Troubleshooting
@@ -194,18 +199,4 @@ ollama list
 
 ```sh
 poetry install
-```
-
-### API Not Responding
-- Ensure the FastAPI server is running:
-
-```sh
-poetry run uvicorn server:app --reload
-```
-
-### Streamlit UI Not Loading
-- Make sure Streamlit is running:
-
-```sh
-poetry run streamlit run app.py
 ```

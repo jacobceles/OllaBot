@@ -1,0 +1,7 @@
+23/03/02 12:45:40 - ERROR - SparkContext: Job aborted due to stage failure: Task 8 failed due to FetchFailed(BlockManagerId(2, worker-node-1, 7337), shuffleId=5, mapId=13, reduceId=8, message=
+org.apache.spark.shuffle.FetchFailedException: Failed to fetch shuffle block 5_13_8 from worker-node-1:7337
+	at org.apache.spark.network.netty.NettyBlockTransferService.fetchBlocks(NettyBlockTransferService.scala:243)
+	at org.apache.spark.storage.BlockManager.getRemoteBytes(BlockManager.scala:820)
+	at org.apache.spark.storage.BlockManager.get(BlockManager.scala:1075)
+	at org.apache.spark.shuffle.ShuffleBlockFetcherIterator.next(ShuffleBlockFetcherIterator.scala:66)
+	at org.apache.spark.shuffle.ShuffleBlockFetcherIterator.next(ShuffleBlockFetcherIterator.scala:48)

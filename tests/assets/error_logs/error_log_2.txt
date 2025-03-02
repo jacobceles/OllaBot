@@ -1,2 +1,6 @@
-2025-02-17 15:06:05,378 - main:main:65 - ERROR - Processing failed with error: A job is already running. Please let it complete first.
-2025-02-17 15:06:06,211 - main:main:68 - ERROR - Sent mattermost notification.
+23/03/02 12:45:35 - ERROR - TaskSetManager: Lost task 8.1 in stage 3.0 (TID 32, executor 3): java.io.FileNotFoundException: hdfs://namenode:9000/data/input.csv (No such file or directory)
+	at java.io.FileInputStream.open0(Native Method)
+	at java.io.FileInputStream.open(FileInputStream.java:195)
+	at java.io.FileInputStream.<init>(FileInputStream.java:138)
+	at java.io.FileInputStream.<init>(FileInputStream.java:93)
+	at org.apache.hadoop.fs.RawLocalFileSystem.open(RawLocalFileSystem.java:309)

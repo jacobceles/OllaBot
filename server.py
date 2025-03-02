@@ -6,24 +6,51 @@ This server provides endpoints to:
 - Analyze log data and provide error summaries and suggested fixes.
 """
 
+import uvicorn
+import argparse
+
 from typing import Any
 
 from dotenv import load_dotenv
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 
-from api.models.classes import LogRequest, QueryRequest
+from api.models.request_models import LogRequest, QueryRequest
 from api.services.database_llm import create_db_engine, create_query_engine, execute_query
 from api.services.log_analysis_llm import summarize_errors
 from utils.logging_config import logger
 
+
 # Load environment variables
 load_dotenv()
 
-# Initialize FastAPI app
-app = FastAPI()
-
 # Dictionary to store database engines to avoid redundant connections
 db_engines: dict[str, Any] = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # This code is run on startup
+    parser = argparse.ArgumentParser(description="Run FastAPI server.")
+    parser.add_argument("--local", action="store_true", help="Run in local mode")
+    args = parser.parse_args()
+
+    if args.local:
+        app.state.local_mode = True
+        logger.info("Running in local mode...")
+    else:
+        app.state.local_mode = False
+    yield
+
+
+# Attach the lifespan context manager
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get("/health")
+async def health_check() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.post("/execute_query/", response_model=dict[str, str])
@@ -55,15 +82,17 @@ async def execute_sql_query(request: QueryRequest) -> dict[str, str]:
     else:
         engine = db_engines[db_type]
         logger.info("Using cached database engine for db_type: %s", db_type)
-
-    # Create query engine and response synthesizer
-    query_engine, synthesizer = create_query_engine(engine, db_type)
-
+    
     try:
-        # Execute query and return both SQL and its natural language summary
-        response_text, sql_query = execute_query(engine, query_engine, synthesizer, question)
-        logger.info("Executed query successfully for question: %s", question)
-        return {"sql_query": sql_query, "response": response_text}
+        # Create query engine and response synthesizer
+        if engine:
+            query_engine, synthesizer = create_query_engine(engine, db_type, app.state.local_mode)
+            # Execute query and return both SQL and its natural language summary
+            response_text, sql_query = execute_query(engine, query_engine, synthesizer, question)
+            logger.info("Executed query successfully for question: %s", question)
+            return {"sql_query": sql_query, "response": response_text}
+        else:
+            raise ValueError("No engine was found!")
     except Exception as e:
         logger.exception("Error executing SQL query for question: %s", question)
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -85,9 +114,13 @@ async def analyze_logs(request: LogRequest) -> dict[str, str]:
     """
     logger.info("Received log analysis request.")
     try:
-        summary: str = summarize_errors(request.logs)
+        summary: str = summarize_errors(request.logs, app.state.local_mode)
         logger.info("Log analysis completed successfully.")
         return {"summary": summary}
     except Exception as e:
         logger.exception("Error analyzing logs.")
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+if __name__ == "__main__":
+    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)

@@ -1,0 +1,1 @@
+23/03/02 12:45:45 - ERROR - YarnScheduler: Lost executor 3 on worker-node-2: Container marked as failed: container_1677762657467_0003_01_000004 on host: worker-node-2

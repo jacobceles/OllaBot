@@ -1,4 +1,13 @@
-- ERROR -
-raise ValueError(exception_message)
-ValueError: Failed with exception: Files were added to partition [job=1] by a concurrent update. Please try the operation again.
-Refer to https://docs.delta.io/latest/concurrency-control.html for more details.
+23/03/02 12:45:32 INFO SparkContext: Running Spark version 3.3.0
+23/03/02 12:45:32 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/03/02 12:45:33 - ERROR - TaskSetManager: Task 5 in stage 2.0 failed 4 times; aborting job
+23/03/02 12:45:33 ERROR Executor: Exception in task 5.0 in stage 2.0 (TID 25)
+org.apache.spark.SparkException: Job aborted due to stage failure: Task 5 failed 4 times, most recent failure: Lost task 5.3 in stage 2.0 (TID 29, executor 2): java.lang.OutOfMemoryError: Java heap space
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:370)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:334)
+	at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:90)
+	at org.apache.spark.scheduler.Task.run(Task.scala:137)
+	at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:515)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:750)

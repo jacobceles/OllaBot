@@ -1,178 +1,150 @@
 """
 Database LLM services for OllaBot.
 
-This module provides functions to create database engines, generate SQL queries
-from natural language questions, execute queries, and synthesize responses.
+Handles:
+- Creating database engines.
+- Generating SQL queries from natural language.
+- Validating and executing SQL queries.
+- Synthesizing natural language responses for query results.
 """
 
-import os
 import re
-from typing import Any, Optional
-
-import yaml
-from llama_index.core import Settings, SQLDatabase
+from typing import Optional
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.exc import SQLAlchemyError
+from llama_index.core import SQLDatabase, Settings
+from llama_index.core.response_synthesizers import Accumulate
 from llama_index.core.indices.struct_store.sql_query import SQLTableRetrieverQueryEngine
 from llama_index.core.objects import ObjectIndex, SQLTableNodeMapping, SQLTableSchema
-from llama_index.embeddings.ollama import OllamaEmbedding  # type: ignore
-from llama_index.llms.ollama import Ollama  # type: ignore
-from sqlalchemy import create_engine, text  # type: ignore
-from sqlalchemy.engine import Engine  # type: ignore
-from sqlalchemy.exc import SQLAlchemyError  # type: ignore
+from llama_index.embeddings.ollama import OllamaEmbedding # type: ignore
+from llama_index.llms.ollama import Ollama # type: ignore
 
-from api.models.classes import CustomAccumulate
 from utils.logging_config import logger
-
-# Load configuration from YAML
-with open("api/configs/config.yaml") as file:
-    config = yaml.safe_load(file)
-QUERY_MODEL_NAME: str = config["models"]["database_query"]["query_model"]
-SUMMARY_MODEL_NAME: str = config["models"]["database_query"]["summary_model"]
-EMBEDDING_MODEL: str = config["models"]["database_query"]["embedding_model"]
+from utils.config import CONFIG, TABLE_CONFIG, get_ollama_base_url
 
 
-def load_table_config(db_type: str) -> list[dict[str, str]]:
+class CustomAccumulate(Accumulate):
     """
-    Load table configurations from the table_config.yaml file.
+    A modified response synthesizer that concatenates outputs without adding labels.
 
-    Args:
-        db_type (str): The type of database (e.g., "postgres").
-
-    Returns:
-        list[dict[str, str]]: list of table configuration dictionaries.
+    Methods:
+        _format_response(outputs, separator): Joins response outputs.
     """
-    try:
-        with open("api/configs/table_config.yaml") as file:
-            config_data: dict[str, dict[str, list[dict[str, str]]]] = yaml.safe_load(file)
-        tables = config_data.get(db_type, {}).get("tables", [])
-        logger.info("Loaded table configuration for db_type: %s", db_type)
-        return tables
-    except Exception as e:
-        logger.exception("Error loading table configuration: %s", e)
-        return []
 
+    def _format_response(self, outputs: list[str], separator: str) -> str:
+        """
+        Joins response outputs into a single string using the provided separator.
 
-def get_db_config(db_type: str) -> Optional[dict[str, Optional[str]]]:
-    """
-    Retrieve database connection details based on the database type.
+        Args:
+            outputs (list[str]): List of response strings.
+            separator (str): Separator for concatenation.
 
-    Args:
-        db_type (str): The type of database.
-
-    Returns:
-        Optional[dict[str, Optional[str]]]: Database configuration dictionary or None if not found.
-    """
-    db_type = db_type.lower()
-    if db_type == "postgres":
-        config_data = {
-            "user": os.getenv("POSTGRES_USER"),
-            "password": os.getenv("POSTGRES_PASSWORD"),
-            "host": os.getenv("POSTGRES_HOST"),
-            "port": os.getenv("POSTGRES_PORT"),
-            "db": os.getenv("POSTGRES_DB"),
-            "schema": os.getenv("POSTGRES_SCHEMA"),
-            "dialect": "postgresql",
-        }
-        logger.info("Retrieved Postgres configuration.")
-        return config_data
-    logger.error("Unsupported db_type: %s", db_type)
-    return None
+        Returns:
+            str: Concatenated response string.
+        """
+        return separator.join(outputs)
 
 
 def create_db_engine(db_type: str) -> Optional[Engine]:
     """
-    Create and return the SQLAlchemy engine for the given database type.
+    Creates a database engine using SQLAlchemy.
 
     Args:
-        db_type (str): The type of database.
+        db_type (str): Type of database (e.g., "postgres").
 
     Returns:
-        Optional[Engine]: SQLAlchemy engine instance or None if configuration is missing.
+        Optional[Engine]: SQLAlchemy engine if successful, None otherwise.
     """
-    config_data: Optional[dict[str, Optional[str]]] = get_db_config(db_type)
-    if not config_data:
-        logger.error("No configuration found for db_type: %s", db_type)
+    db_config = CONFIG.get(db_type, {})
+    if not db_config:
+        logger.error("No database configuration found for %s", db_type)
         return None
+
     try:
-        engine: Engine = create_engine(
-            f"{config_data['dialect']}://{config_data['user']}:{config_data['password']}@{config_data['host']}:{config_data['port']}/{config_data['db']}",
-            connect_args={"options": f"-c search_path={config_data['schema']}"},
+        engine = create_engine(
+            f"{db_config['dialect']}://{db_config['user']}:{db_config['password']}@"
+            f"{db_config['host']}:{db_config['port']}/{db_config['db']}",
+            connect_args={"options": f"-c search_path={db_config['schema']}"},
         )
-        logger.info("Created database engine for db_type: %s", db_type)
+        logger.info("Database engine created for %s", db_type)
         return engine
     except Exception as e:
-        logger.exception("Error creating database engine: %s", e)
+        logger.exception("Failed to create database engine: %s", e)
         return None
 
 
-def create_query_engine(engine: Engine, db_type: str) -> tuple[SQLTableRetrieverQueryEngine, CustomAccumulate]:
+def create_query_engine(engine: Engine, db_type: str, is_local: bool) -> tuple[SQLTableRetrieverQueryEngine, CustomAccumulate]:
     """
-    Set up the SQL query engine and response synthesizer.
+    Creates an SQL query engine and response synthesizer.
 
     Args:
         engine (Engine): SQLAlchemy engine instance.
-        db_type (str): The type of database.
+        db_type (str): Database type.
+        is_local (bool): Whether running in local mode.
 
     Returns:
-        tuple[SQLTableRetrieverQueryEngine, CustomAccumulate]: Query engine and synthesizer.
+        Tuple[SQLTableRetrieverQueryEngine, CustomAccumulate]: Query engine and response synthesizer.
     """
+    QUERY_MODEL_NAME = CONFIG["models"]["database_query"]["query_model"]
+    SUMMARY_MODEL_NAME = CONFIG["models"]["database_query"]["summary_model"]
+    EMBEDDING_MODEL = CONFIG["models"]["database_query"]["embedding_model"]
+
     sql_database = SQLDatabase(engine)
+    
+    # Configure LLM models
+    base_url = get_ollama_base_url(is_local)
+    sql_llm = Ollama(model=QUERY_MODEL_NAME, request_timeout=600.0, base_url=base_url)
+    Settings.embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL, request_timeout=600.0, base_url=base_url)
+    summary_llm = Ollama(model=SUMMARY_MODEL_NAME, request_timeout=600.0, base_url=base_url)
 
-    # Setup for SQL generation
-    sql_llm = Ollama(model=QUERY_MODEL_NAME, request_timeout=60.0)
-    Settings.embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL)
-
-    # Setup for summary generation
-    summary_llm = Ollama(model=SUMMARY_MODEL_NAME, request_timeout=60.0)
     accumulate_synthesizer = CustomAccumulate(llm=summary_llm)
 
-    # Load table schema from configuration
-    tables = load_table_config(db_type)
+    # Load table configurations
+    tables = TABLE_CONFIG.get(db_type, {}).get("tables", [])
     table_schemas = [SQLTableSchema(table_name=t["table_name"], context_str=t["context"]) for t in tables]
 
-    # Create table mappings and object index
     table_node_mapping = SQLTableNodeMapping(sql_database)
     obj_index = ObjectIndex.from_objects(table_schemas, table_node_mapping)
 
-    # Create SQL query engine
     query_engine = SQLTableRetrieverQueryEngine(
-        sql_database=sql_database, table_retriever=obj_index.as_retriever(similarity_top_k=1), rows_retrievers=None, llm=sql_llm, synthesize_response=False, sql_only=True
+        sql_database=sql_database,
+        table_retriever=obj_index.as_retriever(similarity_top_k=1),
+        rows_retrievers=None,
+        llm=sql_llm,
+        synthesize_response=False,
+        sql_only=True
     )
-    logger.info("Created query engine for db_type: %s", db_type)
+
+    logger.info("Created SQL query engine for %s", db_type)
     return query_engine, accumulate_synthesizer
 
 
 def validate_sql_query(sql_query: str) -> bool:
     """
-    Validate the SQL query to prevent SQL injection.
-
-    This is a basic implementation; consider using more robust solutions.
+    Validates an SQL query to prevent SQL injection.
 
     Args:
-        sql_query (str): The SQL query to validate.
+        sql_query (str): The SQL query.
 
     Returns:
-        bool: True if the SQL query is safe, False otherwise.
+        bool: True if the query is safe, False otherwise.
     """
-    prohibited_patterns = [
-        r"xp_",  # Disallow SQL Server extended procedures
-        r"drop\s+table",  # Disallow DROP TABLE statements
-    ]
-    for pattern in prohibited_patterns:
-        if re.search(pattern, sql_query, re.IGNORECASE):
-            logger.warning("SQL query validation failed for pattern: %s", pattern)
-            return False
+    if re.search(r"xp_|drop\s+table", sql_query, re.IGNORECASE):
+        logger.warning("SQL query validation failed: %s", sql_query)
+        return False
     return True
 
 
 def clean_sql_query(sql_query: str) -> str:
     """
-    Extract and return only the SQL query from a given text.
+    Extracts the actual SQL query from a response, removing any extra text.
 
     Args:
-        sql_query (str): The input text containing an SQL query and possibly extra text.
+        sql_query (str): The raw SQL response.
 
     Returns:
-        str: The cleaned SQL query.
+        str: Cleaned SQL query.
     """
     match = re.search(r"^(.*?;)", sql_query, re.DOTALL)
     cleaned_query = match.group(1).strip() if match else sql_query.strip()
@@ -180,67 +152,39 @@ def clean_sql_query(sql_query: str) -> str:
     return cleaned_query
 
 
-def execute_custom_query(engine: Engine, sql_query: str) -> Any:
-    """
-    Execute the SQL query using SQLAlchemy and return the results.
-
-    Args:
-        engine (Engine): SQLAlchemy engine instance.
-        sql_query (str): The SQL query to execute.
-
-    Returns:
-        Any: Query results or None if execution fails.
-    """
-    try:
-        with engine.connect() as connection:
-            result = connection.execute(text(sql_query))
-            results = result.fetchall()
-            logger.info("Executed SQL query successfully.")
-            return results
-    except SQLAlchemyError as e:
-        logger.exception("SQL execution error: %s", e)
-        return None
-
-
 def execute_query(engine: Engine, query_engine: SQLTableRetrieverQueryEngine, synthesizer: CustomAccumulate, query: str) -> tuple[str, str]:
     """
-    Generate SQL from a natural language query, validate, execute, and summarize the results.
+    Generates, validates, executes an SQL query, and returns a summary.
 
     Args:
-        engine (Engine): SQLAlchemy engine instance.
-        query_engine (SQLTableRetrieverQueryEngine): Query engine for SQL generation.
-        synthesizer (CustomAccumulate): Response synthesizer for generating summaries.
-        query (str): The user's natural language query.
+        engine (Engine): SQLAlchemy engine.
+        query_engine (SQLTableRetrieverQueryEngine): Query engine.
+        synthesizer (CustomAccumulate): Response synthesizer.
+        query (str): User's natural language query.
 
     Returns:
-        tuple[str, str]: A tuple containing the summary response and the generated SQL query.
+        Tuple[str, str]: (Generated SQL query, Summary response)
     """
-    # Generate SQL query from natural language input
     sql_response = query_engine.query(query)
-    generated_sql_query: str = ""
     if hasattr(sql_response, "metadata") and sql_response.metadata:
-        generated_sql_query = sql_response.metadata.get("sql_query", "")
+        generated_sql_query = sql_response.metadata.get("sql_query", "") if hasattr(sql_response, "metadata") else ""
 
     if not generated_sql_query:
-        logger.error("No SQL query generated for query: %s", query)
-        return "No SQL query generated.", ""
+        logger.error("No SQL query generated for: %s", query)
+        return "", "No SQL query generated."
 
-    # Validate the generated SQL query
-    if not validate_sql_query(generated_sql_query):
-        logger.error("Generated SQL query is unsafe: %s", generated_sql_query)
-        return "Generated SQL query is potentially unsafe and was not executed.", generated_sql_query
-
-    # Clean the generated SQL query
     generated_sql_query = clean_sql_query(generated_sql_query)
 
-    # Execute the validated SQL query
-    query_results = execute_custom_query(engine, generated_sql_query)
-    if query_results is None:
-        logger.error("Error executing SQL query: %s", generated_sql_query)
-        return "Error executing SQL query.", generated_sql_query
+    if not validate_sql_query(generated_sql_query):
+        logger.error("Unsafe SQL query: %s", generated_sql_query)
+        return generated_sql_query, "Generated SQL query is potentially unsafe."
 
-    # Generate a natural language summary of the query results
-    formatted_results = [str(row) for row in query_results]
-    summary_response = synthesizer.get_response(query_str=query, text_chunks=[str(formatted_results)])
-    logger.info("Generated summary response for query: %s", query)
-    return str(summary_response).strip(), generated_sql_query
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text(generated_sql_query))
+            rows = result.fetchall()
+            summary_response = synthesizer.get_response(query_str=query, text_chunks=[str(rows)])
+            return generated_sql_query, str(summary_response).strip()
+    except SQLAlchemyError as e:
+        logger.error("SQL execution failed: %s", e)
+        return generated_sql_query, "SQL execution failed."
