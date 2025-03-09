@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: ollama-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: ollama-service
@@ -12,19 +12,67 @@ spec:
       labels:
         app: ollama-service
     spec:
+      initContainers:
+        - name: ollama-init
+          image: ollama:latest-version
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              apt-get update
+              echo "Installing Ollama..."
+              curl -fsSL https://ollama.com/install.sh | sh
+              
+              sleep 10
+              # Start Ollama server in background
+              ollama serve &
+              SERVER_PID=$!
+              # Wait for server to start
+              echo "Waiting for Ollama server to initialize..."
+              sleep 10              
+              # Pull models
+              echo "Pulling models..."
+              ollama pull nomic-embed-text
+              ollama pull qwen2.5-coder 
+              ollama pull llama3.2
+              # Clean shutdown of the server
+              echo "Models pulled successfully, shutting down temporary server"
+              kill $SERVER_PID
+              wait $SERVER_PID
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama  # Where Ollama stores models
       containers:
       - name: ollama-service
-        image: ollabot:latest-version
+        image: ollama/ollama:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ollama serve &
+            sleep 10  
+            ollama run llama3.2
+            tail -f /dev/null
         ports:
         - containerPort: 11434
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+        volumeMounts:
+          - name: ollama-data
+            mountPath: /root/.ollama
+      volumes:
+        - name: ollama-data
+          emptyDir: {}
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
   name: ollama-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
       app: ollama-service
   ports:

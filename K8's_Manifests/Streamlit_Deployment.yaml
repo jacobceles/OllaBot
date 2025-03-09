@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: streamlit
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: streamlit
@@ -12,9 +12,21 @@ spec:
       labels:
         app: streamlit
     spec:
+      initContainers:
+        - name: check-fastapi
+          image: busybox:latest
+          command: [ "bin/sh","-c" ]
+          args:
+            - |
+              until wget --spider -q http://fastapi:8000/ || nc -z fastapi 8000;
+              do
+                echo "Waiting for FastAPI to be available...";
+                sleep 5;
+              done;
+              echo "FastAPI is up and running!";
       containers:
       - name: streamlit
-        image: ollabot:latest-version
+        image: streamlit:latest-version
         ports:
         - containerPort: 8501
 ---
@@ -24,7 +36,7 @@ kind: Service
 metadata:
   name: streamlit
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
       app: streamlit
   ports:
