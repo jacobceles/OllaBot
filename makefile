@@ -26,10 +26,10 @@ dockerrun:
 	docker run -p 8000:8000 -p 8501:8501 ${IMAGE}:${TAG}
 
 k8sdeploy: switch-context
-	kubectl apply -n $(NAMESPACE) -f ./K8\'s_Manifests/Ollama_Deployment.yaml
+	kubectl apply -n $(NAMESPACE) -f ./k8s-manifests/Ollama_Deployment.yaml
 
 k8sdeployfastapi: switch-context
-	kubectl apply -n $(NAMESPACE) -f ./K8\'s_Manifests/FastApi_Deployment.yaml
+	kubectl apply -n $(NAMESPACE) -f ./k8s-manifests/FastApi_Deployment.yaml
 
 k8sdeploystreamlit: switch-context
-	kubectl apply -n $(NAMESPACE) -f K8\'s_Manifests/Streamlit_Deployment.yaml
+	kubectl apply -n $(NAMESPACE) -f ./k8s-manifests/Streamlit_Deployment.yaml

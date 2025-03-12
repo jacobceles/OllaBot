@@ -1,0 +1,11 @@
+# base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ollama/deployment.yaml
+- ollama/service.yaml
+- fastapi/deployment.yaml
+- fastapi/service.yaml
+- streamlit/deployment.yaml
+- streamlit/service.yaml

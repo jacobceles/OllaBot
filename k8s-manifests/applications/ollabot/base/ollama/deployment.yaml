@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama-service
+  template:
+    metadata:
+      labels:
+        app: ollama-service
+    spec:
+      containers:
+      - name: ollama-service
+        image: ollama/ollama:latest
+        env:
+          - name: OLLAMA_RUN_TIMEOUT
+            value: "120"
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            ollama serve &
+            sleep 10  
+            ollama pull nomic-embed-text
+            ollama pull qwen2.5-coder 
+            ollama pull llama3.2
+            tail -f /dev/null
+        ports:
+        - containerPort: 11434
+        resources:
+          requests:
+            memory: "8Gi"
+            cpu: "6"
+          limits:
+            memory: "10Gi"
+            cpu: "8"
+        volumeMounts:
+          - name: ollama-data
+            mountPath: /root/.ollama
+      volumes:
+        - name: ollama-data
+          emptyDir: {}
