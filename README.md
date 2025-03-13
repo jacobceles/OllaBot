@@ -135,6 +135,20 @@ python -m server --local
 # Start Streamlit App
 source $(poetry env info --path)/bin/activate
 streamlit run app.py -- --local
+
+```
+### Alternative: Running from Kubernetes
+
+To run the app through K8's, first build the Docker images using the Make file 
+```
+# Docker Build Command
+make build-ollabot
+
+Next deploy the images to K8's using the Kustomize yamls
+
+# K8's Deployment
+kubectl apply -k [Path to folder containing the specific kustomize yaml]
+
 ```
 
 Once the app is running, open [http://localhost:8501](http://localhost:8501) in your browser.
