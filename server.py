@@ -34,7 +34,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # This code is run on startup
     parser = argparse.ArgumentParser(description="Run FastAPI server.")
     parser.add_argument("--local", action="store_true", help="Run in local mode")
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    #args = parser.parse_args()
 
     if args.local:
         app.state.local_mode = True
