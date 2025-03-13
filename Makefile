@@ -12,7 +12,7 @@ build-ollabot:
 	docker build -t ${StreamlitImage}:${TAG} -f "./docker/streamlit/DockerFile" .
 
 deploy-dev: switch-context
-	kubectl apply -k k8s-manifests/applications/ollabot/environments/dev -n dev
+	kubectl apply -k k8s-manifests/environments/dev -n dev
 
 deploy-personal: switch-context
-	kubectl apply -k k8s-manifests/applications/ollabot/environments/developers/vineeth -n tartarus
+	kubectl apply -k k8s-manifests/environments/vineeth -n tartarus
