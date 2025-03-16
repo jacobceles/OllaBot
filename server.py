@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.models.request_models import LogRequest, QueryRequest
 from api.services.database_llm import create_db_engine, create_query_engine, execute_query
@@ -27,6 +28,7 @@ load_dotenv()
 
 # Dictionary to store database engines to avoid redundant connections
 db_engines: dict[str, Any] = {}
+
 
 
 @asynccontextmanager
@@ -42,13 +44,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Running in local mode...")
     else:
         app.state.local_mode = False
+
     yield
 
 
 # Attach the lifespan context manager
 app = FastAPI(lifespan=lifespan)
-
-
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+logger.info("✅ Metrics endpoint exposed at /metrics")
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
@@ -124,4 +127,6 @@ async def analyze_logs(request: LogRequest) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+    #uvicorn.run("server:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+

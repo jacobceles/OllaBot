@@ -1,5 +1,5 @@
 IMAGE = ollabot
-TAG = latest
+TAG = latest-version
 OllamaImage = ollama
 FastapiImage = fastapi
 StreamlitImage = streamlit
@@ -15,4 +15,5 @@ deploy-dev: switch-context
 	kubectl apply -k k8s-manifests/environments/dev -n dev
 
 deploy-personal: switch-context
-	kubectl apply -k k8s-manifests/environments/vineeth/ -n tartarus
+	kubectl apply -k k8s-manifests/environments/vineeth/
+	kubectl apply -k k8s-manifests/applications/ollabot/base/monitoring
