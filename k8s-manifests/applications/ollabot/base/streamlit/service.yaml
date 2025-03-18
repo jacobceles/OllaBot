@@ -5,13 +5,13 @@ metadata:
   labels:
     app: streamlit
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
-      app: streamlit
+    app: streamlit
   ports:
-  - name: streamlit
-    port: 8501
-    targetPort: 8501
-  - port: 8000
-    targetPort: 8000
-    name: metrics
+    - name: streamlit
+      port: 8501
+      targetPort: 8501
+    - name: metrics
+      port: 9100
+      targetPort: 9100

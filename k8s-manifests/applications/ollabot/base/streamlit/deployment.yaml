@@ -29,5 +29,3 @@ spec:
         image: streamlit:latest-version
         ports:
         - containerPort: 8501
-        - containerPort: 8000
-          name: metrics

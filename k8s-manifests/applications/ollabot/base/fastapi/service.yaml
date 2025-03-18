@@ -13,5 +13,5 @@ spec:
     port: 8000
     targetPort: 8000
   - name: metrics
-    port: 8000
+    port: 8000      # ✅ Change this from 9090 to 8000
     targetPort: 8000

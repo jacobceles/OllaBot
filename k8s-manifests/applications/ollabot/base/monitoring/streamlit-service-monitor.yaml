@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: streamlit-monitor
+  namespace: monitoring
+  labels:
+    app: streamlit
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: streamlit
+  endpoints:
+    - port: streamlit  # Use the correct port name from the Service definition
+      interval: 15s
+      path: /  # Streamlit doesn't have a metrics endpoint by default
+  namespaceSelector:
+    matchNames:
+      - tartarus
