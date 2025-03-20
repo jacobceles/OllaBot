@@ -23,9 +23,8 @@ deploy-personal: switch-context
 deploy-monitoring:
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || (echo "Not able to fetch repo from git. Exiting." && exit 1)
 	helm repo update
-	helm install prometheus prometheus-community/kube-prometheus-stack \
+	helm install prometheus prometheus-community/kube-prometheus-stack -f "k8s-manifests/applications/ollabot/base/monitoring/values.yaml" \
 	--namespace $(MonitoringNamespace) \
-	--values k8s-manifests/applications/ollabot/base/monitoring/prometheus-values.yaml
 	--set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
 	--set prometheus.prometheusSpec.serviceMonitorSelector.matchLabels.monitoring=enabled
 	@echo "Patching Node Exporter DaemonSet to remove mountPropagation..."
@@ -33,14 +32,15 @@ deploy-monitoring:
 	kubectl patch daemonset prometheus-prometheus-node-exporter -n $(MonitoringNamespace) --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/2/mountPropagation"}]'
 	@echo "Node Exporter DaemonSet updated successfully."
 
-port-forward-prometheus:
+port-forward-grafana:
 	@echo "Setting up port forwarding..."
 	kubectl port-forward -n $(MonitoringNamespace) svc/prometheus-grafana 3000:80 &
 	#{kubectl port-forward -n $(MonitoringNamespace) svc/prometheus-operated 9090:9090} &&
 	@echo "Port forwarding active. Press Ctrl+C to terminate."
 
-port-forward-grafana:
+port-forward-prometheus:
 	@echo "Setting up port forwarding..."
 	kubectl port-forward -n $(MonitoringNamespace) svc/prometheus-operated 9090:9090 &
 	@echo "Port forwarding active. Press Ctrl+C to terminate."
-# Grafana Creds - user - admin, Pass - prom-operator.
+# grafana Creds - user - admin, Pass - prom-operator
+
