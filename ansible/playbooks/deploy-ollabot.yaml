@@ -1,0 +1,32 @@
+---
+- name: Deploy Ollabot Application
+  hosts: localhost
+  vars:
+    IMAGE: "ollabot"
+    TAG: "latest-version"
+    OllamaImage: "ollama"
+    FastapiImage: "fastapi"
+    StreamlitImage: "streamlit"
+    MonitoringNamespace: "monitoring"
+    ApplicationNamespace: "tartarus"
+  tasks:
+    #- name: Switch to Tartarus Namespace
+    #  command: kubectl config set-context --current --namespace={{ ApplicationNamespace }}
+
+    - name: Print current working directory
+      ansible.builtin.command: pwd
+      register: current_dir
+
+    - name: Show working directory
+      ansible.builtin.debug:
+        msg: "Ansible is running in: {{ current_dir.stdout }}"
+
+    - name: Build Fast Api Docker Image
+      ansible.builtin.command:
+        cmd: docker build -t {{ FastapiImage }}:{{ TAG }} -f "./docker/fastapi/DockerFile" .
+        chdir: "../.."
+
+    - name: Build Streamlit Docker Image
+      ansible.builtin.command:
+        cmd: docker build -t {{ StreamlitImage }}:{{TAG}} -f "./docker/streamlit/DockerFile" .
+        chdir: "../.."
