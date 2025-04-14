@@ -1,0 +1,34 @@
+name: Deploy Image to AWS ECR
+on:
+  workflow_dispatch: # Enables manual trigger from GitHub UI
+env:
+  AWS_REGION: us-east-1
+  ECR_REPO: ecr
+  IMAGE_TAG: ${{ github.sha }}
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to AWS ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and tag Docker Image
+        run: |
+          docker build -t $ECR_REPO:$IMAGE_TAG -f ./docker/fastapi/DockerFile .
+          docker tag $ECR_REPO:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+      
+      - name: Push to ECR
+        run: docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/$ECR_REPO:$IMAGE_TAG
