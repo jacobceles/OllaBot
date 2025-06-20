@@ -1,0 +1,63 @@
+---
+- name: Deploy Ollabot Application
+  hosts: localhost
+  vars:
+    IMAGE: "ollabot"
+    TAG: "latest-version"
+    OllamaImage: "ollama"
+    FastapiImage: "fastapi"
+    StreamlitImage: "streamlit"
+    MonitoringNamespace: "monitoring"
+    ApplicationNamespace: "tartarus"
+  tasks:
+    #- name: Switch to Tartarus Namespace
+    #  command: kubectl config set-context --current --namespace={{ ApplicationNamespace }}
+
+    - name: Build Fast Api Docker Image
+      ansible.builtin.command:
+        cmd: docker build -t {{ FastapiImage }}:{{ TAG }} -f "./docker/fastapi/DockerFile" .
+        chdir: "../.."
+
+    - name: Build Streamlit Docker Image
+      ansible.builtin.command:
+        cmd: docker build -t {{ StreamlitImage }}:{{TAG}} -f "./docker/streamlit/DockerFile" .
+        chdir: "../.."
+
+    - name: Deploy Ollabot to Kubernetes
+      ansible.builtin.command:
+        cmd: kubectl apply -k k8s-manifests/environments/vineeth/
+        chdir: "../.."
+
+    - name: Add Prometheus Helm Repository
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: "https://prometheus-community.github.io/helm-charts"
+
+    - name: Update Helm Repository
+      ansible.builtin.command:
+        cmd: helm repo update
+
+    - name: Deploy Monitoring to Kubernetes
+      ansible.builtin.command:
+        cmd: >
+         helm install prometheus prometheus-community/kube-prometheus-stack
+         -f k8s-manifests/applications/ollabot/base/monitoring/values.yaml
+         --namespace {{ MonitoringNamespace }}
+         --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false
+         --set prometheus.prometheusSpec.serviceMonitorSelector.matchLabels.monitoring=enabled
+        chdir: "../.."
+
+    - name: Patch Node Exporter DaemonSet
+      command: >
+        kubectl patch daemonset prometheus-prometheus-node-exporter -n {{ MonitoringNamespace }}
+        --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/volumeMounts/2/mountPropagation"}]'
+
+    - name: Port Forward Grafana
+      command: tmux new-session -d -s grafana_port_forward 'kubectl port-forward -n {{ MonitoringNamespace }} svc/prometheus-grafana 3000:80'
+      async: 0
+      poll: 0
+
+    - name: Port Forward Prometheus
+      command: tmux new-session -d -s prometheus_port_forward 'kubectl port-forward -n {{ MonitoringNamespace }} svc/prometheus-operated 9090:9090'
+      async: 0
+      poll: 0

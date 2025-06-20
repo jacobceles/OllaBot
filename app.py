@@ -9,9 +9,20 @@ Features:
 import streamlit as st
 from utils.logging_config import logger
 from utils.helpers import get_execution_mode, make_api_request, initialize_session_state
+from prometheus_client import start_http_server, Counter
+import threading
 
 # Determine execution mode (local vs. container)
 IS_LOCAL, API_URL, ANALYSIS_TIMEOUT = get_execution_mode()
+
+#Define Metric for Request Count
+REQUEST_COUNT = Counter('streamlit_request_count', 'Number of requests received')
+
+def start_metrics_server():
+    # Start Prometheus metrics server on port 8000
+    start_http_server(9100, addr="0.0.0.0")
+
+threading.Thread(target=start_metrics_server, daemon=True).start()
 
 # Set the page title and layout
 st.set_page_config(page_title="OllaBot", layout="wide")
@@ -25,6 +36,7 @@ initialize_session_state(["query_submitted", "response_ready", "log_submitted", 
 
 if menu == "Ask me!":
     st.sidebar.header("Database Configuration")
+    REQUEST_COUNT.inc()
     db_type = st.sidebar.selectbox("Select Database Type", ["postgres"])
 
     query_disabled = st.session_state.query_submitted and not st.session_state.response_ready
@@ -58,6 +70,7 @@ if menu == "Ask me!":
 
 elif menu == "Analyze Logs":
     st.subheader("Log Analysis & Error Summarization")
+    REQUEST_COUNT.inc()
     log_disabled = st.session_state.log_submitted and not st.session_state.log_response_ready
     log_input = st.text_area("Paste log data here:", disabled=log_disabled, height=200)
 

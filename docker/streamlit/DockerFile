@@ -1,6 +1,9 @@
 FROM python:3.13.2-slim-bookworm
 WORKDIR /streamlit
 RUN pip install poetry
+RUN pip install prometheus-client
+RUN apt-get update && apt-get install -y net-tools
+RUN apt-get install -y curl
 COPY poetry.lock pyproject.toml ./
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-interaction --no-ansi

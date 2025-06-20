@@ -26,4 +26,6 @@ spec:
       - name: fastapi
         image: fastapi:latest-version
         ports:
-        - containerPort: 8000
+        - name: fastapi
+          containerPort: 8000
+
